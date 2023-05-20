@@ -80,10 +80,7 @@ export default function App() {
   const [gridModeEnabled, setGridModeEnabled] = useState(false);
   const [blobUrl, setBlobUrl] = useState<string>("");
   const [canvasUrl, setCanvasUrl] = useState<string>("");
-  const [exportWithDarkMode, setExportWithDarkMode] = useState(false);
-  const [exportEmbedScene, setExportEmbedScene] = useState(false);
-  const [theme, setTheme] = useState("light");
-  const [isCollaborating, setIsCollaborating] = useState(false);
+  const [theme, setTheme] = useState("dark");
   const [commentIcons, setCommentIcons] = useState<{ [id: string]: Comment }>(
     {}
   );
@@ -103,12 +100,44 @@ export default function App() {
 
   useHandleLibrary({ excalidrawAPI });
 
+  console.log(excalidrawAPI, 'excalidrawAPI')
+
+  const addImage = async (imageName: string) => {
+    console.log("addImage")
+    if (!excalidrawAPI) {
+      return;
+    }
+    const res = await fetch(`/graphics/${imageName}`);
+    console.log(res, 'res')
+    const imageData = await res.blob();
+    console.log(imageData, 'imageData')
+    const reader = new FileReader();
+    console.log(reader, 'reader')
+    reader.readAsDataURL(imageData);
+
+    reader.onload = function () {
+      const imagesArray: BinaryFileData[] = [
+        {
+          id: imageName as BinaryFileData["id"],
+          dataURL: reader.result as BinaryFileData["dataURL"],
+          mimeType: MIME_TYPES.png,
+          created: 1644915140367,
+          lastRetrieved: 1644915140367
+        }
+      ];
+
+      console.log(imagesArray, 'imagesArray')
+      initialStatePromiseRef.current.promise.resolve(initialData);
+      excalidrawAPI.addFiles(imagesArray);
+    }
+  };
+
   useEffect(() => {
     if (!excalidrawAPI) {
       return;
     }
     const fetchData = async () => {
-      const res = await fetch("/rocket.jpeg");
+      const res = await fetch("/graphics/element-1.png");
       const imageData = await res.blob();
       const reader = new FileReader();
       reader.readAsDataURL(imageData);
@@ -131,72 +160,6 @@ export default function App() {
     };
     fetchData();
   }, [excalidrawAPI]);
-
-  const updateScene = () => {
-    const sceneData = {
-      elements: restoreElements(
-        [
-          {
-            type: "rectangle",
-            version: 141,
-            versionNonce: 361174001,
-            isDeleted: false,
-            id: "oDVXy8D6rom3H1-LLH2-f",
-            fillStyle: "hachure",
-            strokeWidth: 1,
-            strokeStyle: "solid",
-            roughness: 1,
-            opacity: 100,
-            angle: 0,
-            x: 100.50390625,
-            y: 93.67578125,
-            strokeColor: "#c92a2a",
-            backgroundColor: "transparent",
-            width: 186.47265625,
-            height: 141.9765625,
-            seed: 1968410350,
-            groupIds: [],
-            boundElements: null,
-            locked: false,
-            link: null,
-            updated: 1,
-            roundness: {
-              type: 3,
-              value: 32
-            }
-          }
-        ],
-        null
-      ),
-      appState: {
-        viewBackgroundColor: "#edf2ff"
-      }
-    };
-    excalidrawAPI?.updateScene(sceneData);
-  };
-
-  const onLinkOpen = useCallback(
-    (
-      element: NonDeletedExcalidrawElement,
-      event: CustomEvent<{
-        nativeEvent: MouseEvent | React.PointerEvent<HTMLCanvasElement>;
-      }>
-    ) => {
-      const link = element.link!;
-      const { nativeEvent } = event.detail;
-      const isNewTab = nativeEvent.ctrlKey || nativeEvent.metaKey;
-      const isNewWindow = nativeEvent.shiftKey;
-      const isInternalLink =
-        link.startsWith("/") || link.includes(window.location.origin);
-      if (isInternalLink && !isNewTab && !isNewWindow) {
-        // signal that we're handling the redirect ourselves
-        event.preventDefault();
-        // do a custom redirect, such as passing to react-router
-        // ...
-      }
-    },
-    []
-  );
 
   const onCopy = async (type: "png" | "svg" | "json") => {
     if (!excalidrawAPI) {
@@ -278,98 +241,6 @@ export default function App() {
       }
     });
   };
-  const saveComment = () => {
-    if (!comment) {
-      return;
-    }
-    if (!comment.id && !comment.value) {
-      setComment(null);
-      return;
-    }
-    const id = comment.id || nanoid();
-    setCommentIcons({
-      ...commentIcons,
-      [id]: {
-        x: comment.id ? comment.x - 60 : comment.x,
-        y: comment.y,
-        id,
-        value: comment.value
-      }
-    });
-    setComment(null);
-  };
-
-  const renderCommentIcons = () => {
-    return Object.values(commentIcons).map((commentIcon) => {
-      if (!excalidrawAPI) {
-        return false;
-      }
-      const appState = excalidrawAPI.getAppState();
-      const { x, y } = sceneCoordsToViewportCoords(
-        { sceneX: commentIcon.x, sceneY: commentIcon.y },
-        excalidrawAPI.getAppState()
-      );
-      return (
-        <div
-          id={commentIcon.id}
-          key={commentIcon.id}
-          style={{
-            top: `${y - COMMENT_ICON_DIMENSION / 2 - appState!.offsetTop}px`,
-            left: `${x - COMMENT_ICON_DIMENSION / 2 - appState!.offsetLeft}px`,
-            position: "absolute",
-            zIndex: 1,
-            width: `${COMMENT_ICON_DIMENSION}px`,
-            height: `${COMMENT_ICON_DIMENSION}px`,
-            cursor: "pointer",
-            touchAction: "none"
-          }}
-          className="comment-icon"
-          onPointerDown={(event) => {
-            event.preventDefault();
-            if (comment) {
-              commentIcon.value = comment.value;
-              saveComment();
-            }
-            const pointerDownState: any = {
-              x: event.clientX,
-              y: event.clientY,
-              hitElement: commentIcon,
-              hitElementOffsets: { x: event.clientX - x, y: event.clientY - y }
-            };
-            const onPointerMove = onPointerMoveFromPointerDownHandler(
-              pointerDownState
-            );
-            const onPointerUp = onPointerUpFromPointerDownHandler(
-              pointerDownState
-            );
-            window.addEventListener("pointermove", onPointerMove);
-            window.addEventListener("pointerup", onPointerUp);
-
-            pointerDownState.onMove = onPointerMove;
-            pointerDownState.onUp = onPointerUp;
-
-            excalidrawAPI?.setActiveTool({
-              type: "custom",
-              customType: "comment"
-            });
-          }}
-        >
-          <div className="comment-avatar">
-            <img src="doremon.png" alt="doremon" />
-          </div>
-        </div>
-      );
-    });
-  };
-
-  const renderSidebar = () => {
-    return (
-      <Sidebar>
-        <Sidebar.Header>Custom header!</Sidebar.Header>
-        Custom sidebar!
-      </Sidebar>
-    );
-  };
 
   const renderMenu = () => {
     return (
@@ -399,9 +270,6 @@ export default function App() {
       <h1> Excalidraw Kurukuru Demo</h1>
       <ExampleSidebar>
         <div className="button-wrapper">
-          <button className="update-scene" onClick={updateScene}>
-            Update Scene
-          </button>
           <button
             className="reset-scene"
             onClick={() => {
@@ -435,14 +303,11 @@ export default function App() {
             Switch to Dark Theme
           </label>
           <div>
-            <button onClick={onCopy.bind(null, "png")}>
-              Copy to Clipboard as PNG
+            <button onClick={() => addImage("element-1.png")}>
+              Add Element 1
             </button>
-            <button onClick={onCopy.bind(null, "svg")}>
-              Copy to Clipboard as SVG
-            </button>
-            <button onClick={onCopy.bind(null, "json")}>
-              Copy to Clipboard as JSON
+            <button onClick={() => addImage("element-2.png")}>
+              Add Element 2
             </button>
           </div>
           <div
@@ -475,9 +340,7 @@ export default function App() {
             theme={theme}
             name="Custom name of drawing"
             UIOptions={{ canvasActions: { loadScene: false } }}
-            onLinkOpen={onLinkOpen}
             onPointerDown={onPointerDown}
-            renderSidebar={renderSidebar}
           >
             {excalidrawAPI && (
               <Footer>
@@ -486,94 +349,6 @@ export default function App() {
             )}
             {renderMenu()}
           </Excalidraw>
-        </div>
-
-        <div className="export-wrapper button-wrapper">
-          <label className="export-wrapper__checkbox">
-            <input
-              type="checkbox"
-              checked={exportWithDarkMode}
-              onChange={() => setExportWithDarkMode(!exportWithDarkMode)}
-            />
-            Export with dark mode
-          </label>
-          <label className="export-wrapper__checkbox">
-            <input
-              type="checkbox"
-              checked={exportEmbedScene}
-              onChange={() => setExportEmbedScene(!exportEmbedScene)}
-            />
-            Export with embed scene
-          </label>
-          <button
-            onClick={async () => {
-              if (!excalidrawAPI) {
-                return;
-              }
-              const svg = await exportToSvg({
-                elements: excalidrawAPI?.getSceneElements(),
-                appState: {
-                  exportWithDarkMode,
-                  exportEmbedScene,
-                  width: 300,
-                  height: 100
-                },
-                files: excalidrawAPI?.getFiles()
-              });
-              appRef.current.querySelector(".export-svg").innerHTML =
-                svg.outerHTML;
-            }}
-          >
-            Export to SVG
-          </button>
-          <div className="export export-svg"></div>
-
-          <button
-            onClick={async () => {
-              if (!excalidrawAPI) {
-                return;
-              }
-              const blob = await exportToBlob({
-                elements: excalidrawAPI?.getSceneElements(),
-                mimeType: "image/png",
-                appState: {
-                  exportEmbedScene,
-                  exportWithDarkMode
-                },
-                files: excalidrawAPI?.getFiles()
-              });
-              setBlobUrl(window.URL.createObjectURL(blob));
-            }}
-          >
-            Export to Blob
-          </button>
-          <div className="export export-blob">
-            <img src={blobUrl} alt="" />
-          </div>
-
-          <button
-            onClick={async () => {
-              if (!excalidrawAPI) {
-                return;
-              }
-              const canvas = await exportToCanvas({
-                elements: excalidrawAPI.getSceneElements(),
-                appState: {
-                  exportWithDarkMode
-                },
-                files: excalidrawAPI.getFiles()
-              });
-              const ctx = canvas.getContext("2d")!;
-              ctx.font = "30px Virgil";
-              ctx.strokeText("My custom text", 50, 60);
-              setCanvasUrl(canvas.toDataURL());
-            }}
-          >
-            Export to Canvas
-          </button>
-          <div className="export export-canvas">
-            <img src={canvasUrl} alt="" />
-          </div>
         </div>
       </ExampleSidebar>
     </div>
