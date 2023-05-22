@@ -81,6 +81,7 @@ export default function App() {
   const [blobUrl, setBlobUrl] = useState<string>("");
   const [canvasUrl, setCanvasUrl] = useState<string>("");
   const [theme, setTheme] = useState("dark");
+  const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
   const [commentIcons, setCommentIcons] = useState<{ [id: string]: Comment }>(
     {}
   );
@@ -100,19 +101,13 @@ export default function App() {
 
   useHandleLibrary({ excalidrawAPI });
 
-  console.log(excalidrawAPI, 'excalidrawAPI')
-
   const addImage = async (imageName: string) => {
-    console.log("addImage")
     if (!excalidrawAPI) {
       return;
     }
-    const res = await fetch(`/graphics/${imageName}`);
-    console.log(res, 'res')
+    const res = await fetch(`${imageName}`);
     const imageData = await res.blob();
-    console.log(imageData, 'imageData')
     const reader = new FileReader();
-    console.log(reader, 'reader')
     reader.readAsDataURL(imageData);
 
     reader.onload = function () {
@@ -120,15 +115,53 @@ export default function App() {
         {
           id: imageName as BinaryFileData["id"],
           dataURL: reader.result as BinaryFileData["dataURL"],
-          mimeType: MIME_TYPES.png,
+          mimeType: MIME_TYPES.jpg,
           created: 1644915140367,
           lastRetrieved: 1644915140367
         }
       ];
 
-      console.log(imagesArray, 'imagesArray')
-      initialStatePromiseRef.current.promise.resolve(initialData);
+    //   initialStatePromiseRef.current.promise.resolve(initialData);
+    console.log("imagesArray", imagesArray)
       excalidrawAPI.addFiles(imagesArray);
+      console.log(excalidrawAPI.getFiles(), 'files')
+      console.log(excalidrawAPI.getSceneElements())
+      const currentElements = excalidrawAPI.getSceneElements();
+      //update scene
+      excalidrawAPI.updateScene({
+        elements: [
+          ...currentElements,
+          {
+            id: imagesArray[0].id,
+            type: "image",
+            x: 697.5067170062408,
+            y: -745.50415625,
+            width: 231.30325348751828,
+            height: 231.64340533088227,
+            angle: 0,
+            strokeColor: "transparent",
+            backgroundColor: "transparent",
+            fillStyle: "hachure",
+            strokeWidth: 1,
+            strokeStyle: "solid",
+            roughness: 1,
+            opacity: 100,
+            groupIds: [],
+            seed: 707269846,
+            version: 143,
+            versionNonce: 2028982666,
+            isDeleted: false,
+            boundElements: null,
+            updated: 1644914782403,
+            link: null,
+            locked: false,
+            roundness: null, // add this line
+            fileId: imagesArray[0].id, 
+            status: "pending",
+            scale: [1, 1] 
+          },
+        ],
+      });
     }
   };
 
@@ -268,6 +301,7 @@ export default function App() {
   return (
     <div className="App" ref={appRef}>
       <h1> Excalidraw Kurukuru Demo</h1>
+      {imageDataUrl && <img src={imageDataUrl} />} {/* Add this line */}
       <ExampleSidebar>
         <div className="button-wrapper">
           <button
@@ -303,12 +337,9 @@ export default function App() {
             Switch to Dark Theme
           </label>
           <div>
-            <button onClick={() => addImage("element-1.png")}>
-              Add Element 1
-            </button>
-            <button onClick={() => addImage("element-2.png")}>
-              Add Element 2
-            </button>
+          <button onClick={() => addImage('/pika.jpeg')}>
+            Add Element 1
+          </button>
           </div>
           <div
             style={{
@@ -326,8 +357,8 @@ export default function App() {
           <Excalidraw
             ref={(api: ExcalidrawImperativeAPI) => setExcalidrawAPI(api)}
             initialData={initialStatePromiseRef.current.promise}
-            onChange={(elements, state) => {
-              console.info("Elements :", elements, "State : ", state);
+            onChange={(elements) => {
+              console.info("Elements :", elements);
             }}
             onPointerUpdate={(payload: {
               pointer: { x: number; y: number };
@@ -349,6 +380,7 @@ export default function App() {
             )}
             {renderMenu()}
           </Excalidraw>
+
         </div>
       </ExampleSidebar>
     </div>
