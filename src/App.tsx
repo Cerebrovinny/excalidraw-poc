@@ -170,7 +170,7 @@ export default function App() {
       return;
     }
     const fetchData = async () => {
-      const res = await fetch("/graphics/element-1.png");
+      const res = await fetch("/excalidraw-poc/element-1.png");
       const imageData = await res.blob();
       const reader = new FileReader();
       reader.readAsDataURL(imageData);
@@ -337,7 +337,7 @@ export default function App() {
             Switch to Dark Theme
           </label>
           <div>
-          <button onClick={() => addImage('/pika.jpeg')}>
+          <button onClick={() => addImage('/excalidraw-poc/pika.jpeg')}>
             Add Element 1
           </button>
           </div>
